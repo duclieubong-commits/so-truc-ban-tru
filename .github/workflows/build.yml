@@ -1,0 +1,42 @@
+name: Tự động đóng gói APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lấy mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Cài đặt Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Cài đặt Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Tạo cấu trúc nền tảng Android
+        run: |
+          flutter create temp_app --platforms=android --project-name=so_truc_ban_tru
+          cp -r temp_app/android .
+          rm -rf temp_app
+
+      - name: Cài đặt thư viện
+        run: flutter pub get
+
+      - name: Đóng gói APK Release
+        run: flutter build apk --release
+
+      - name: Đẩy file APK lên Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: So-Truc-Ban-Tru-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
