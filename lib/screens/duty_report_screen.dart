@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'duty_report_model.dart';
-import 'room_attendance_table_widget.dart';
-import 'report_pdf_service.dart';
+import 'package:so_truc_ban_tru/models/duty_report_model.dart';
+import 'package:so_truc_ban_tru/widgets/room_attendance_table_widget.dart';
+import 'package:so_truc_ban_tru/services/report_pdf_service.dart';
 
 class DutyReportScreen extends StatefulWidget {
   const DutyReportScreen({Key? key}) : super(key: key);
