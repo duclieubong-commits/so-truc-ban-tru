@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'duty_report_model.dart';
+import 'package:so_truc_ban_tru/models/duty_report_model.dart';
 
 class RoomAttendanceTableWidget extends StatelessWidget {
   final String title;
