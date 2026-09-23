@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Dữ liệu điểm danh theo từng phòng
 class RoomAttendance {
   final int roomNumber;
   int present;
@@ -30,6 +34,7 @@ class RoomAttendance {
   );
 }
 
+/// Dữ liệu sĩ số theo lớp (6A - 9B)
 class ClassAttendance {
   final String className;
   int present;
@@ -54,6 +59,7 @@ class ClassAttendance {
   );
 }
 
+/// Mô hình toàn bộ biên bản ca trực
 class DutyReport {
   String id;
   DateTime dutyDate;
@@ -86,7 +92,7 @@ class DutyReport {
     List<RoomAttendance>? dinnerAttendances,
     List<RoomAttendance>? studyAttendances,
     List<RoomAttendance>? breakfastAttendances,
-    this.securityNote = 'Khu vực nội trú an toàn, ổn định.',
+    this.securityNote = 'Khu vực nội trú an toàn, ổn định, không có vụ việc bất thường.',
     this.incidentsAndSolutions = 'Không có.',
     this.representativeTeacher = '',
   })  : teachers = teachers ?? ['', '', ''],
@@ -127,7 +133,7 @@ class DutyReport {
 
   factory DutyReport.fromMap(Map<String, dynamic> map) => DutyReport(
     id: map['id'] ?? '',
-    dutyDate: DateTime.parse(map['dutyDate']),
+    dutyDate: DateTime.tryParse(map['dutyDate'] ?? '') ?? DateTime.now(),
     hour: map['hour'] ?? 7,
     minute: map['minute'] ?? 30,
     teachers: List<String>.from(map['teachers'] ?? ['', '', '']),
@@ -155,4 +161,45 @@ class DutyReport {
     incidentsAndSolutions: map['incidentsAndSolutions'] ?? '',
     representativeTeacher: map['representativeTeacher'] ?? '',
   );
+}
+
+/// Dịch vụ lưu trữ trực tiếp vào bộ nhớ máy điện thoại
+class ReportStorageService {
+  static const String _keyReports = 'saved_duty_reports';
+
+  static Future<List<DutyReport>> getAllReports() async {
+    final prefs = await SharedPreferences.getInstance();
+    final listJson = prefs.getStringList(_keyReports) ?? [];
+    List<DutyReport> reports = [];
+    for (var str in listJson) {
+      try {
+        reports.add(DutyReport.fromMap(jsonDecode(str)));
+      } catch (_) {}
+    }
+    reports.sort((a, b) => b.dutyDate.compareTo(a.dutyDate));
+    return reports;
+  }
+
+  static Future<void> saveOrUpdateReport(DutyReport report) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<DutyReport> reports = await getAllReports();
+
+    int index = reports.indexWhere((r) => r.id == report.id);
+    if (index >= 0) {
+      reports[index] = report;
+    } else {
+      reports.insert(0, report);
+    }
+
+    final listJson = reports.map((r) => jsonEncode(r.toMap())).toList();
+    await prefs.setStringList(_keyReports, listJson);
+  }
+
+  static Future<void> deleteReport(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<DutyReport> reports = await getAllReports();
+    reports.removeWhere((r) => r.id == id);
+    final listJson = reports.map((r) => jsonEncode(r.toMap())).toList();
+    await prefs.setStringList(_keyReports, listJson);
+  }
 }
