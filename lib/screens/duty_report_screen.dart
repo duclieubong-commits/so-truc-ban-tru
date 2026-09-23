@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:so_truc_ban_tru/models/duty_report_model.dart';
 import 'package:so_truc_ban_tru/widgets/room_attendance_table_widget.dart';
 import 'package:so_truc_ban_tru/services/report_pdf_service.dart';
+import 'package:so_truc_ban_tru/services/report_storage_service.dart';
 
 class DutyReportScreen extends StatefulWidget {
-  const DutyReportScreen({Key? key}) : super(key: key);
+  final DutyReport? existingReport; // Truyền biên bản cũ vào để sửa nếu có
+
+  const DutyReportScreen({Key? key, this.existingReport}) : super(key: key);
 
   @override
   State<DutyReportScreen> createState() => _DutyReportScreenState();
@@ -13,32 +16,43 @@ class DutyReportScreen extends StatefulWidget {
 class _DutyReportScreenState extends State<DutyReportScreen> {
   late DutyReport report;
 
-  // Quản lý nhập họ và tên 3 người trực
   late TextEditingController _teacher1Ctrl;
   late TextEditingController _teacher2Ctrl;
   late TextEditingController _teacher3Ctrl;
-  int _signerIndex = 0; // Mặc định người 1 ký
+  int _signerIndex = 0;
 
-  // Quản lý nhập sĩ số 8 lớp (6A - 9B)
   late List<TextEditingController> _classPresentControllers;
   late List<TextEditingController> _classTotalControllers;
 
   @override
   void initState() {
     super.initState();
-    report = DutyReport(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      dutyDate: DateTime.now(),
-      hour: 7,
-      minute: 30,
-      teachers: ['', '', ''],
-    );
+    // Nếu có biên bản truyền vào thì lấy dữ liệu cũ, ngược lại tạo mới
+    if (widget.existingReport != null) {
+      report = widget.existingReport!;
+    } else {
+      report = DutyReport(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        dutyDate: DateTime.now(),
+        hour: 7,
+        minute: 30,
+        teachers: ['', '', ''],
+      );
+    }
 
-    _teacher1Ctrl = TextEditingController(text: report.teachers[0]);
-    _teacher2Ctrl = TextEditingController(text: report.teachers[1]);
-    _teacher3Ctrl = TextEditingController(text: report.teachers[2]);
+    _teacher1Ctrl = TextEditingController(text: report.teachers.isNotEmpty ? report.teachers[0] : '');
+    _teacher2Ctrl = TextEditingController(text: report.teachers.length > 1 ? report.teachers[1] : '');
+    _teacher3Ctrl = TextEditingController(text: report.teachers.length > 2 ? report.teachers[2] : '');
 
-    // Khởi tạo controller nhập sĩ số cho từng lớp
+    // Xác định người ký hiện tại
+    if (report.representativeTeacher == _teacher2Ctrl.text && _teacher2Ctrl.text.isNotEmpty) {
+      _signerIndex = 1;
+    } else if (report.representativeTeacher == _teacher3Ctrl.text && _teacher3Ctrl.text.isNotEmpty) {
+      _signerIndex = 2;
+    } else {
+      _signerIndex = 0;
+    }
+
     _classPresentControllers = report.classAttendances
         .map((c) => TextEditingController(text: c.present > 0 ? c.present.toString() : ''))
         .toList();
@@ -50,6 +64,11 @@ class _DutyReportScreenState extends State<DutyReportScreen> {
   }
 
   void _syncSigner() {
+    report.teachers = [
+      _teacher1Ctrl.text.trim(),
+      _teacher2Ctrl.text.trim(),
+      _teacher3Ctrl.text.trim(),
+    ];
     if (_signerIndex == 0) {
       report.representativeTeacher = _teacher1Ctrl.text.trim();
     } else if (_signerIndex == 1) {
@@ -59,17 +78,26 @@ class _DutyReportScreenState extends State<DutyReportScreen> {
     }
   }
 
+  Future<void> _saveReport() async {
+    _syncSigner();
+    await ReportStorageService.saveOrUpdateReport(report);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Đã lưu biên bản thành công!'),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _teacher1Ctrl.dispose();
     _teacher2Ctrl.dispose();
     _teacher3Ctrl.dispose();
-    for (var c in _classPresentControllers) {
-      c.dispose();
-    }
-    for (var c in _classTotalControllers) {
-      c.dispose();
-    }
+    for (var c in _classPresentControllers) { c.dispose(); }
+    for (var c in _classTotalControllers) { c.dispose(); }
     super.dispose();
   }
 
@@ -77,22 +105,48 @@ class _DutyReportScreenState extends State<DutyReportScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Biên Bản Trực Bán Trú'),
+        title: Text(widget.existingReport != null ? 'Sửa Biên Bản' : 'Biên Bản Trực'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.save),
+            tooltip: 'Lưu biên bản',
+            onPressed: _saveReport,
+          ),
+          IconButton(
             icon: const Icon(Icons.picture_as_pdf),
-            tooltip: 'Xuất văn bản PDF',
+            tooltip: 'Xuất PDF',
             onPressed: () async {
-              _syncSigner();
+              await _saveReport();
               await ReportPdfService.generateAndSharePdf(report);
             },
           ),
         ],
       ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, -2))],
+        ),
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1E56A0),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          icon: const Icon(Icons.save),
+          label: const Text('LƯU BIÊN BẢN NÀY', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          onPressed: () async {
+            await _saveReport();
+            if (mounted) Navigator.pop(context, true);
+          },
+        ),
+      ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // KHỐI 1: TỰ CHỌN NGÀY VÀ GIỜ LẬP BIÊN BẢN
+            // KHỐI 1: TỰ CHỌN NGÀY VÀ GIỜ
             Card(
               margin: const EdgeInsets.fromLTRB(12, 12, 12, 6),
               elevation: 2,
@@ -101,23 +155,16 @@ class _DutyReportScreenState extends State<DutyReportScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'TRƯỜNG PTDTBT THCS PHAN THANH',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E56A0)),
-                    ),
-                    const Text(
-                      'TỔ QUẢN LÝ HS BÁN TRÚ',
-                      style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
-                    ),
+                    const Text('TRƯỜNG PTDTBT THCS PHAN THANH',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E56A0))),
+                    const Text('TỔ QUẢN LÝ HS BÁN TRÚ',
+                        style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
                     const Divider(height: 16),
-                    const Text(
-                      'Thời gian lập biên bản (Chạm vào để đổi ngày/giờ):',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                    ),
+                    const Text('Thời gian lập biên bản (Chạm vào để đổi ngày/giờ):',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        // Nút chọn ngày linh hoạt
                         Expanded(
                           flex: 3,
                           child: InkWell(
@@ -130,9 +177,7 @@ class _DutyReportScreenState extends State<DutyReportScreen> {
                                 locale: const Locale('vi', 'VN'),
                               );
                               if (pickedDate != null) {
-                                setState(() {
-                                  report.dutyDate = pickedDate;
-                                });
+                                setState(() { report.dutyDate = pickedDate; });
                               }
                             },
                             child: Container(
@@ -158,7 +203,6 @@ class _DutyReportScreenState extends State<DutyReportScreen> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        // Nút chọn giờ linh hoạt
                         Expanded(
                           flex: 2,
                           child: InkWell(
@@ -201,7 +245,7 @@ class _DutyReportScreenState extends State<DutyReportScreen> {
               ),
             ),
 
-            // KHỐI 2: NHẬP HỌ TÊN 03 NGƯỜI TRỰC VÀ CHỌN NGƯỜI KÝ
+            // KHỐI 2: NHẬP HỌ TÊN 03 NGƯỜI TRỰC
             Card(
               margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               elevation: 2,
@@ -214,15 +258,10 @@ class _DutyReportScreenState extends State<DutyReportScreen> {
                       children: const [
                         Icon(Icons.group, color: Color(0xFF1E56A0)),
                         SizedBox(width: 8),
-                        Text(
-                          'Thành viên ca trực (03 người)',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                        ),
+                        Text('Thành viên ca trực (03 người)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                       ],
                     ),
                     const SizedBox(height: 10),
-
-                    // Người trực 1
                     TextField(
                       controller: _teacher1Ctrl,
                       decoration: InputDecoration(
@@ -236,13 +275,10 @@ class _DutyReportScreenState extends State<DutyReportScreen> {
                             : null,
                       ),
                       onChanged: (val) {
-                        report.teachers[0] = val.trim();
                         if (_signerIndex == 0) _syncSigner();
                       },
                     ),
                     const SizedBox(height: 10),
-
-                    // Người trực 2
                     TextField(
                       controller: _teacher2Ctrl,
                       decoration: InputDecoration(
@@ -256,13 +292,10 @@ class _DutyReportScreenState extends State<DutyReportScreen> {
                             : null,
                       ),
                       onChanged: (val) {
-                        report.teachers[1] = val.trim();
                         if (_signerIndex == 1) _syncSigner();
                       },
                     ),
                     const SizedBox(height: 10),
-
-                    // Người trực 3
                     TextField(
                       controller: _teacher3Ctrl,
                       decoration: InputDecoration(
@@ -276,13 +309,10 @@ class _DutyReportScreenState extends State<DutyReportScreen> {
                             : null,
                       ),
                       onChanged: (val) {
-                        report.teachers[2] = val.trim();
                         if (_signerIndex == 2) _syncSigner();
                       },
                     ),
                     const SizedBox(height: 8),
-
-                    // Tùy chọn người ký
                     Row(
                       children: [
                         const Text('Người ký: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
@@ -317,7 +347,7 @@ class _DutyReportScreenState extends State<DutyReportScreen> {
               ),
             ),
 
-            // MỤC 1: SĨ SỐ ĐẾN TRƯỜNG (CHO PHÉP NHẬP CỤ THỂ 8 LỚP)
+            // MỤC 1: SĨ SỐ LỚP 6A - 9B
             Card(
               margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               elevation: 2,
@@ -326,18 +356,9 @@ class _DutyReportScreenState extends State<DutyReportScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      '1. Theo dõi sĩ số học sinh đến trường (7h30 - 8h30)',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Nhập sĩ số [Có mặt] / [Tổng số] của từng lớp:',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Lưới 2 cột cho 8 lớp (6A, 6B, 7A, 7B, 8A, 8B, 9A, 9B)
+                    const Text('1. Sĩ số học sinh đến trường (7h30 - 8h30)',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    const SizedBox(height: 8),
                     GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
@@ -361,14 +382,11 @@ class _DutyReportScreenState extends State<DutyReportScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(
-                                'Lớp ${ca.className}',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E56A0)),
-                              ),
+                              Text('Lớp ${ca.className}',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E56A0))),
                               const SizedBox(height: 4),
                               Row(
                                 children: [
-                                  // Ô nhập Số có mặt
                                   Expanded(
                                     child: TextField(
                                       controller: _classPresentControllers[i],
@@ -390,7 +408,6 @@ class _DutyReportScreenState extends State<DutyReportScreen> {
                                     padding: EdgeInsets.symmetric(horizontal: 4),
                                     child: Text('/', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                                   ),
-                                  // Ô nhập Tổng sĩ số
                                   Expanded(
                                     child: TextField(
                                       controller: _classTotalControllers[i],
@@ -428,7 +445,7 @@ class _DutyReportScreenState extends State<DutyReportScreen> {
               onDataChanged: () => setState(() {}),
             ),
 
-            // MỤC 5.1 & 5.2: GIÁM SÁT ĂN TRƯA, TỐI
+            // MỤC 5.1 & 5.2
             RoomAttendanceTableWidget(
               title: '5.1 Giám sát ăn trưa',
               timeFrame: '11h55 – 12h05',
@@ -442,7 +459,7 @@ class _DutyReportScreenState extends State<DutyReportScreen> {
               onDataChanged: () => setState(() {}),
             ),
 
-            // MỤC 6: QUẢN LÝ TỰ HỌC
+            // MỤC 6
             RoomAttendanceTableWidget(
               title: '6. Quản lý giờ tự học ở nội trú',
               timeFrame: '19h00 – 20h30',
@@ -450,7 +467,7 @@ class _DutyReportScreenState extends State<DutyReportScreen> {
               onDataChanged: () => setState(() {}),
             ),
 
-            // MỤC 7: SĨ SỐ & ĂN SÁNG HÔM SAU
+            // MỤC 7
             RoomAttendanceTableWidget(
               title: '7. Theo dõi sĩ số và HS ăn sáng hôm sau',
               timeFrame: '06h00 – 06h45',
@@ -458,7 +475,7 @@ class _DutyReportScreenState extends State<DutyReportScreen> {
               onDataChanged: () => setState(() {}),
             ),
 
-            // CÁC MỤC NHẬN XÉT (3, 4, 8, 9)
+            // CÁC MỤC NHẬN XÉT
             Card(
               margin: const EdgeInsets.all(12),
               elevation: 2,
@@ -494,7 +511,7 @@ class _DutyReportScreenState extends State<DutyReportScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 20),
           ],
         ),
       ),
