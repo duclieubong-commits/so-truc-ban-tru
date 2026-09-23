@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'screens/duty_report_screen.dart';
+import 'screens/report_history_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,8 +15,6 @@ class BoardingDutyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Sổ Trực Bán Trú',
       debugShowCheckedModeBanner: false,
-      
-      // Hỗ trợ tiếng Việt cho DatePicker, hộp thoại hệ thống
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
@@ -26,11 +24,10 @@ class BoardingDutyApp extends StatelessWidget {
         Locale('vi', 'VN'),
       ],
       locale: const Locale('vi', 'VN'),
-
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1E56A0), // Xanh dương hành chính
+          seedColor: const Color(0xFF1E56A0),
           brightness: Brightness.light,
         ),
         appBarTheme: const AppBarTheme(
@@ -44,7 +41,7 @@ class BoardingDutyApp extends StatelessWidget {
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         ),
       ),
-      home: const DutyReportScreen(),
+      home: const ReportHistoryScreen(), // Trang chủ là danh sách lịch sử
     );
   }
 }
