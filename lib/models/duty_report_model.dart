@@ -1,12 +1,9 @@
-import 'dart:convert';
-
-/// Dữ liệu điểm danh theo từng phòng (áp dụng cho các mục 2, 5.1, 5.2, 6, 7)
 class RoomAttendance {
-  final int roomNumber; // Phòng 1 -> 9
-  int present; // Số HS có mặt
-  int total; // Tổng số HS phòng
-  String absentDetails; // Tên HS vắng (kèm lí do)
-  String note; // Ghi chú
+  final int roomNumber;
+  int present;
+  int total;
+  String absentDetails;
+  String note;
 
   RoomAttendance({
     required this.roomNumber,
@@ -33,9 +30,8 @@ class RoomAttendance {
   );
 }
 
-/// Dữ liệu sĩ số theo lớp (Mục 1: 6A đến 9B)
 class ClassAttendance {
-  final String className; // 6A, 6B, 7A, 7B, 8A, 8B, 9A, 9B
+  final String className;
   int present;
   int total;
 
@@ -50,41 +46,31 @@ class ClassAttendance {
     'present': present,
     'total': total,
   };
+
+  factory ClassAttendance.fromMap(Map<String, dynamic> map) => ClassAttendance(
+    className: map['className'] ?? '',
+    present: map['present'] ?? 0,
+    total: map['total'] ?? 0,
+  );
 }
 
-/// Toàn bộ biên bản trực bán trú
 class DutyReport {
   String id;
   DateTime dutyDate;
   int hour;
   int minute;
-  List<String> teachers; // Tối đa 3 giáo viên trực
-  
-  // 1. Sĩ số học sinh đến trường (7h30 - 8h30)
+  List<String> teachers;
   List<ClassAttendance> classAttendances;
-
-  // 2. Sĩ số bán trú trưa (12h15 - 13h30)
   List<RoomAttendance> noonRoomAttendances;
-
-  // 3 & 4. Nội quy & Vệ sinh
   String dormRulesNote;
   String hygieneNote;
-
-  // 5. Giám sát ăn trưa & tối
-  List<RoomAttendance> lunchAttendances; // 11h55 - 12h05
-  List<RoomAttendance> dinnerAttendances; // 18h00 - 18h10
-
-  // 6. Quản lý tự học (19h00 - 20h30)
+  List<RoomAttendance> lunchAttendances;
+  List<RoomAttendance> dinnerAttendances;
   List<RoomAttendance> studyAttendances;
-
-  // 7. Sĩ số & Ăn sáng hôm sau (06h00 - 06h45)
   List<RoomAttendance> breakfastAttendances;
-
-  // 8 & 9. An ninh & Sự việc bất thường
   String securityNote;
   String incidentsAndSolutions;
-
-  String representativeTeacher; // Đại diện ký tên
+  String representativeTeacher;
 
   DutyReport({
     required this.id,
@@ -100,7 +86,7 @@ class DutyReport {
     List<RoomAttendance>? dinnerAttendances,
     List<RoomAttendance>? studyAttendances,
     List<RoomAttendance>? breakfastAttendances,
-    this.securityNote = 'Khu vực nội trú an toàn, ổn định, không có vụ việc bất thường.',
+    this.securityNote = 'Khu vực nội trú an toàn, ổn định.',
     this.incidentsAndSolutions = 'Không có.',
     this.representativeTeacher = '',
   })  : teachers = teachers ?? ['', '', ''],
@@ -119,4 +105,54 @@ class DutyReport {
   static List<RoomAttendance> _generateDefaultRooms() {
     return List.generate(9, (index) => RoomAttendance(roomNumber: index + 1));
   }
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'dutyDate': dutyDate.toIso8601String(),
+    'hour': hour,
+    'minute': minute,
+    'teachers': teachers,
+    'classAttendances': classAttendances.map((x) => x.toMap()).toList(),
+    'noonRoomAttendances': noonRoomAttendances.map((x) => x.toMap()).toList(),
+    'dormRulesNote': dormRulesNote,
+    'hygieneNote': hygieneNote,
+    'lunchAttendances': lunchAttendances.map((x) => x.toMap()).toList(),
+    'dinnerAttendances': dinnerAttendances.map((x) => x.toMap()).toList(),
+    'studyAttendances': studyAttendances.map((x) => x.toMap()).toList(),
+    'breakfastAttendances': breakfastAttendances.map((x) => x.toMap()).toList(),
+    'securityNote': securityNote,
+    'incidentsAndSolutions': incidentsAndSolutions,
+    'representativeTeacher': representativeTeacher,
+  };
+
+  factory DutyReport.fromMap(Map<String, dynamic> map) => DutyReport(
+    id: map['id'] ?? '',
+    dutyDate: DateTime.parse(map['dutyDate']),
+    hour: map['hour'] ?? 7,
+    minute: map['minute'] ?? 30,
+    teachers: List<String>.from(map['teachers'] ?? ['', '', '']),
+    classAttendances: (map['classAttendances'] as List<dynamic>?)
+        ?.map((x) => ClassAttendance.fromMap(x))
+        .toList(),
+    noonRoomAttendances: (map['noonRoomAttendances'] as List<dynamic>?)
+        ?.map((x) => RoomAttendance.fromMap(x))
+        .toList(),
+    dormRulesNote: map['dormRulesNote'] ?? '',
+    hygieneNote: map['hygieneNote'] ?? '',
+    lunchAttendances: (map['lunchAttendances'] as List<dynamic>?)
+        ?.map((x) => RoomAttendance.fromMap(x))
+        .toList(),
+    dinnerAttendances: (map['dinnerAttendances'] as List<dynamic>?)
+        ?.map((x) => RoomAttendance.fromMap(x))
+        .toList(),
+    studyAttendances: (map['studyAttendances'] as List<dynamic>?)
+        ?.map((x) => RoomAttendance.fromMap(x))
+        .toList(),
+    breakfastAttendances: (map['breakfastAttendances'] as List<dynamic>?)
+        ?.map((x) => RoomAttendance.fromMap(x))
+        .toList(),
+    securityNote: map['securityNote'] ?? '',
+    incidentsAndSolutions: map['incidentsAndSolutions'] ?? '',
+    representativeTeacher: map['representativeTeacher'] ?? '',
+  );
 }
