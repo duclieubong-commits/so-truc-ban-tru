@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'screens/report_history_screen.dart';
+import 'screens/duty_report_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,7 +41,7 @@ class BoardingDutyApp extends StatelessWidget {
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         ),
       ),
-      home: const ReportHistoryScreen(), // Trang chủ là danh sách lịch sử
+      home: const DutyReportScreen(),
     );
   }
 }
