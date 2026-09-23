@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -8,11 +8,11 @@ class ReportPdfService {
   static Future<void> generateAndSharePdf(DutyReport r) async {
     final pdf = pw.Document();
 
-    // Tự động tải font chữ tiếng Việt chuẩn từ Google Fonts
-    final fontRegular = await PdfGoogleFonts.robotoRegular();
-    final fontBold = await PdfGoogleFonts.robotoBold();
-    final fontItalic = await PdfGoogleFonts.robotoItalic();
-    final fontBoldItalic = await PdfGoogleFonts.robotoBoldItalic();
+    // Nạp trực tiếp bộ font tiếng Việt từ bộ nhớ cục bộ của ứng dụng (hoàn toàn Offline)
+    final fontRegular = pw.Font.ttf(await rootBundle.load('assets/fonts/Roboto-Regular.ttf'));
+    final fontBold = pw.Font.ttf(await rootBundle.load('assets/fonts/Roboto-Bold.ttf'));
+    final fontItalic = pw.Font.ttf(await rootBundle.load('assets/fonts/Roboto-Italic.ttf'));
+    final fontBoldItalic = pw.Font.ttf(await rootBundle.load('assets/fonts/Roboto-BoldItalic.ttf'));
 
     final theme = pw.ThemeData.withFont(
       base: fontRegular,
@@ -21,7 +21,7 @@ class ReportPdfService {
       boldItalic: fontBoldItalic,
     );
 
-    // Bảng phụ trợ 9 phòng có ép kiểu RoomAttendance tường minh
+    // Bảng phụ trợ 9 phòng
     pw.Widget buildRoomTable(String title, String timeFrame, List<RoomAttendance> rooms) {
       return pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
