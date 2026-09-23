@@ -12,7 +12,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Cài đặt Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -29,11 +29,19 @@ jobs:
           cp -r temp_app/android .
           rm -rf temp_app
 
+      - name: Tải bộ font tiếng Việt nhúng Offline
+        run: |
+          mkdir -p assets/fonts
+          curl -L -o assets/fonts/Roboto-Regular.ttf https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Regular.ttf
+          curl -L -o assets/fonts/Roboto-Bold.ttf https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Bold.ttf
+          curl -L -o assets/fonts/Roboto-Italic.ttf https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Italic.ttf
+          curl -L -o assets/fonts/Roboto-BoldItalic.ttf https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-BoldItalic.ttf
+
       - name: Cài đặt thư viện
         run: flutter pub get
 
       - name: Đóng gói APK Release
-        run: flutter build apk --release
+        run: flutter build apk --release --no-tree-shake-icons
 
       - name: Đẩy file APK lên Artifacts
         uses: actions/upload-artifact@v4
